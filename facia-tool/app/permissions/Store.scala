@@ -4,12 +4,13 @@ import com.amazonaws.services.s3.AmazonS3Client
 import dispatch.Http
 import org.quartz._
 import org.quartz.impl.StdSchedulerFactory
+import permissions.ScheduledJob.FunctionJob
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
-class PermissionsReader(bucket: String, callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
+class ScheduledJob(bucket: String, callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
 
   private val job = JobBuilder.newJob(classOf[FunctionJob])
                     .withIdentity(s"refresh")
@@ -26,13 +27,23 @@ class PermissionsReader(bucket: String, callback: Try[Map[String, String]] => Un
       .withSchedule(schedule)
       .build
 
+    ScheduledJob.jobs.put(job.getKey,() => refresh())
+
     if (scheduler.checkExists(job.getKey)) {
       scheduler.deleteJob(job.getKey)
     }
 
     scheduler.scheduleJob(job, trigger)
+    scheduler.start()
   }
 
+  def refresh() = {
+    println("calling refresh")
+  }
+}
+
+
+object ScheduledJob {
   // globally accessible state for the scheduler
   private val jobs = mutable.Map[JobKey, () => Unit]()
   class FunctionJob extends Job {

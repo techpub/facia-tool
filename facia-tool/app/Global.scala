@@ -3,6 +3,7 @@ import java.io.File
 import common._
 import conf.{Configuration => GuardianConfiguration, SwitchboardLifecycle, Gzipper}
 import metrics.FrontendMetric
+import permissions.S3Reader$
 import play.api._
 import play.api.mvc.WithFilters
 import services.ConfigAgentLifecycle
@@ -27,4 +28,11 @@ object Global extends WithFilters(Gzipper)
     ContentApiMetrics.ContentApiErrorMetric,
     S3Metrics.S3ClientExceptionsMetric
   )
+
+  override def onStart(app: Application) = {
+    println("******* START *******")
+    val permissionsReader = new S3Reader("tmp")
+    permissionsReader.start()
+
+  }
 }
