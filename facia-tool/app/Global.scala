@@ -34,7 +34,9 @@ object Global extends WithFilters(Gzipper)
   override def onStart(app: Application) = {
     val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
     s3Client.setRegion(Regions.fromName("eu-west-1"))
+    import scala.concurrent.ExecutionContext.Implicits.global._
     val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
     val (contents, date) = permissionsReader.getObjectAsString("permissions.json", "permissions-cache/CODE")
+    permissionsReader.agent.get()
   }
 }
