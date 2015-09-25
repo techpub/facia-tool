@@ -1,9 +1,11 @@
 package permissions
 
 import akka.agent.Agent
+import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{GetObjectRequest, S3Object}
 import java.util.Date
+import conf.aws
 import dispatch.Http
 import org.quartz._
 import org.quartz.impl.StdSchedulerFactory
@@ -15,7 +17,8 @@ import scala.concurrent.ExecutionContext
 import scala.io.Source
 import scala.util.Try
 
-class ScheduledJob(bucket: String, s3Client: AmazonS3Client, callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
+
+class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
 
   private val job = JobBuilder.newJob(classOf[FunctionJob])
                     .withIdentity(s"refresh")
@@ -42,7 +45,11 @@ class ScheduledJob(bucket: String, s3Client: AmazonS3Client, callback: Try[Map[S
   }
 
   def refresh() = {
-
+    println("CALLING REFRESH")
+    val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
+    s3Client.setRegion(Regions.fromName("eu-west-1"))
+    val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
+    permissionsReader.storePermissions("permissions.json", "permissions-cache/CODE")
   }
 }
 
@@ -80,14 +87,16 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
   private def getObject(key: String, bucketName: String): S3Object = s3Client.getObject(new GetObjectRequest(bucketName, key))
   // Get object contents and ensure stream is closed
   //to do - move the parsing and storing somewhere
-  def getObjectAsString(key: String, bucketName: String)(implicit executionContext: ExecutionContext): (String, Date) = {
+  def storePermissions(key: String, bucketName: String): (String, Date) = {
     val obj = getObject(key, bucketName)
     try {
       val (contents, date) = (Source.fromInputStream(obj.getObjectContent, "UTF-8").mkString, obj.getObjectMetadata.getLastModified)
       val jsValue = Json.parse(contents)
       val permissionCache = jsValue.validate[List[PermissionCacheEntry]]
       permissionCache match {
-        case JsSuccess(perm, _) => agent.send(perm)
+        case JsSuccess(perm, _) => {
+          agent.send(perm)
+        }
         case JsError(error) => println(s"could not format ${error}")
       }
       (contents, date)
