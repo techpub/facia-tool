@@ -1,9 +1,11 @@
 import java.io.File
 
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3Client
 import common._
-import conf.{Configuration => GuardianConfiguration, SwitchboardLifecycle, Gzipper}
+import conf.{Configuration => GuardianConfiguration, aws, SwitchboardLifecycle, Gzipper}
 import metrics.FrontendMetric
-import permissions.S3Reader$
+import permissions.{PermissionsReader, ScheduledJob}
 import play.api._
 import play.api.mvc.WithFilters
 import services.ConfigAgentLifecycle
@@ -30,9 +32,9 @@ object Global extends WithFilters(Gzipper)
   )
 
   override def onStart(app: Application) = {
-    println("******* START *******")
-    val permissionsReader = new S3Reader("tmp")
-    permissionsReader.start()
-
+    val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
+    s3Client.setRegion(Regions.fromName("eu-west-1"))
+    val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
+    val (contents, date) = permissionsReader.getObjectAsString("permissions.json", "permissions-cache/CODE")
   }
 }
