@@ -34,8 +34,6 @@ object Global extends WithFilters(Gzipper)
 
   override def onStart(app: Application) = {
    val job = new ScheduledJob()
-    job.start()
-
-
+   job.start()
   }
 }

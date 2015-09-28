@@ -5,6 +5,7 @@ import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{GetObjectRequest, S3Object}
 import java.util.Date
+import com.gu.pandomainauth.model.User
 import conf.aws
 import dispatch.Http
 import org.quartz._
@@ -66,9 +67,19 @@ object ScheduledJob {
 
 case class SimplePermission(name: String, app: String, defaultValue: Boolean = true)
 
+
 object SimplePermission {
   implicit val json = Json.format[SimplePermission]
+  val ManageUsers = SimplePermission("manage_users", App.global, defaultValue=false)
+  val ConfigureFronts = SimplePermission("configure_fronts", App.fronts, defaultValue=false)
+  val all = List(ManageUsers, ConfigureFronts)
 }
+
+object App {
+  val fronts = "fronts"
+  val global = "global"
+}
+
 case class PermissionOverrideForUser(userId: String, active: Boolean)
 
 object PermissionOverrideForUser {
@@ -108,4 +119,34 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
       obj.close()
     }
   }
+
+  def get(p: SimplePermission, user: User): Boolean = {
+    val ps = agent.get()
+    val permission = ps.find(_.permission==p)
+    permission match {
+      case Some(tmp) => {
+        val overrides = tmp.overrides
+        val users = overrides.find(_.userId==user.email)
+        users match {
+          case Some(u) => {
+            println(s"permission override for ${u.active}")
+            u.active
+          }
+          case None => {
+            println("no overrides for user")
+            p.defaultValue
+          }
+        }
+      }
+      case None => {
+        println("defaulting default")
+        p.defaultValue
+      }
+    }
+  }
 }
+
+
+
+
+

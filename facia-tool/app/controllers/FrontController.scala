@@ -1,6 +1,10 @@
 package controllers
 
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3Client
 import com.gu.facia.client.models.{FrontJson, CollectionConfigJson}
+import com.gu.pandomainauth.action.UserRequest
+import permissions.{SimplePermission, PermissionsReader}
 import play.api.mvc.Controller
 import services.Press
 import util.Requests._
@@ -8,6 +12,8 @@ import play.api.libs.json.Json
 import config.UpdateManager
 import com.gu.pandomainauth.model.User
 import auth.PanDomainAuthActions
+import conf.aws
+import scala.concurrent.Future
 
 object CreateFront {
   implicit val jsonFormat = Json.format[CreateFront].filter(_.id.matches("""^[a-z0-9\/\-+]*$"""))
@@ -54,3 +60,24 @@ object FrontController extends Controller with PanDomainAuthActions {
     }
   }
 }
+
+import play.api.mvc._
+
+object PermissionRequest extends ActionFilter[UserRequest] {
+  def PermissionAction[A](permission: SimplePermission)(implicit request: UserRequest[A]) = new ActionFilter[UserRequest] {
+    def user = request.user
+    def filter[A](input: UserRequest[A]) = Future.successful {
+      val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
+      s3Client.setRegion(Regions.fromName("eu-west-1"))
+      val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
+      if(permissionsReader.get(permission, user)) {
+        None
+      }
+      else {
+        Some(Results.Forbidden)
+
+      }
+    }
+  }
+}
+
