@@ -72,7 +72,7 @@ object PermissionCheckAction extends ActionFilter[UserRequest] {
       None
     }
     else {
-      Some(Results.Forbidden)
+      Some(Results.Unauthorized(views.html.unauthorized()))
     }
   }
 }
