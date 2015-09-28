@@ -47,7 +47,7 @@ class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), schedul
 
   def refresh() = {
     println("CALLING REFRESH")
-    val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
+    val s3Client = new AmazonS3Client(aws.permissionsCreds)
     s3Client.setRegion(Regions.fromName("eu-west-1"))
     val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
     permissionsReader.storePermissions("permissions.json", "permissions-cache/CODE")
@@ -121,6 +121,7 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
   }
 
   def get(p: SimplePermission, user: User): Boolean = {
+    println("CHECKING THE PERM")
     val ps = agent.get()
     val permission = ps.find(_.permission==p)
     permission match {

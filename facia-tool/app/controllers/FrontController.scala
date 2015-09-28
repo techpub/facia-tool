@@ -36,7 +36,7 @@ case class CreateFront(
 )
 
 object FrontController extends Controller with PanDomainAuthActions {
-  def create = APIAuthAction { request =>
+  def create = (APIAuthAction andThen PermissionCheckAction) { request =>
     request.body.read[CreateFront] match {
       case Some(createFrontRequest) =>
         val identity = request.user
@@ -48,7 +48,7 @@ object FrontController extends Controller with PanDomainAuthActions {
     }
   }
 
-  def update(frontId: String) = APIAuthAction { request =>
+  def update(frontId: String) = (APIAuthAction andThen PermissionCheckAction){ request =>
     request.body.read[FrontJson] match {
       case Some(front) =>
         val identity = request.user
@@ -63,21 +63,18 @@ object FrontController extends Controller with PanDomainAuthActions {
 
 import play.api.mvc._
 
-object PermissionRequest extends ActionFilter[UserRequest] {
-  def PermissionAction[A](permission: SimplePermission)(implicit request: UserRequest[A]) = new ActionFilter[UserRequest] {
-    def user = request.user
-    def filter[A](input: UserRequest[A]) = Future.successful {
-      val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
-      s3Client.setRegion(Regions.fromName("eu-west-1"))
-      val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
-      if(permissionsReader.get(permission, user)) {
-        None
-      }
-      else {
-        Some(Results.Forbidden)
-
-      }
+object PermissionCheckAction extends ActionFilter[UserRequest] {
+  override def filter[A](request: UserRequest[A]) = Future.successful {
+    val s3Client = new AmazonS3Client(aws.permissionsCreds)
+    s3Client.setRegion(Regions.fromName("eu-west-1"))
+    val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
+    if(permissionsReader.get(SimplePermission.ConfigureFronts, request.user)) {
+      None
+    }
+    else {
+      Some(Results.Forbidden)
     }
   }
 }
+
 

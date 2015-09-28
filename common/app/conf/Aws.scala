@@ -11,7 +11,7 @@ object aws {
   def mandatoryCredentials: AWSCredentialsProvider = credentials.getOrElse(throw new BadConfigurationException("AWS credentials are not configured"))
   val credentials: Option[AWSCredentialsProvider] = {
     val provider = new AWSCredentialsProviderChain(
-      new ProfileCredentialsProvider("workflow"),
+      new ProfileCredentialsProvider("CMS Fronts"),
       new InstanceProfileCredentialsProvider
     )
 
@@ -30,6 +30,8 @@ object aws {
         None
     }
   }
+
+  def permissionsCreds = new AWSCredentialsProviderChain(new ProfileCredentialsProvider("workflow")).getCredentials
 
   def mandatoryCrossAccountCredentials: AWSCredentialsProvider = crossAccount.getOrElse(throw new BadConfigurationException("AWS credentials are not configured for cross account"))
   var crossAccount: Option[AWSCredentialsProvider] = {
