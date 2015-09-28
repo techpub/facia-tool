@@ -14,9 +14,10 @@ import permissions.ScheduledJob.FunctionJob
 import play.api.libs.json._
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 import scala.io.Source
 import scala.util.Try
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
@@ -92,8 +93,8 @@ object PermissionCacheEntry {
 }
 
 class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  {
-  import scala.concurrent.ExecutionContext.Implicits.global
-  val agent = Agent[List[PermissionCacheEntry]](List[PermissionCacheEntry]())
+
+  private val agent = Agent[List[PermissionCacheEntry]](List[PermissionCacheEntry]())
 
   private def getObject(key: String, bucketName: String): S3Object = s3Client.getObject(new GetObjectRequest(bucketName, key))
   // Get object contents and ensure stream is closed
@@ -106,7 +107,8 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
       val permissionCache = jsValue.validate[List[PermissionCacheEntry]]
       permissionCache match {
         case JsSuccess(perm, _) => {
-          agent.send(perm)
+          println("STORING PERMS " + perm)
+          agent.alter(_ => perm)
         }
         case JsError(error) => println(s"could not format ${error}")
       }
@@ -120,30 +122,34 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
     }
   }
 
-  def get(p: SimplePermission, user: User): Boolean = {
-    println("CHECKING THE PERM")
-    val ps = agent.get()
-    val permission = ps.find(_.permission==p)
-    permission match {
-      case Some(tmp) => {
-        val overrides = tmp.overrides
-        val users = overrides.find(_.userId==user.email)
-        users match {
-          case Some(u) => {
-            println(s"permission override for ${u.active}")
-            u.active
-          }
-          case None => {
-            println("no overrides for user")
-            p.defaultValue
+  def get(p: SimplePermission, user: User): Future[Boolean] = {
+    println("****************** CHECKING THE PERM *************")
+    val psFt = agent.future()
+    psFt.map { ps =>
+      println("ARE THERE ANY PERMS " + ps)
+      val permission = ps.find(_.permission==p)
+      permission match {
+        case Some(tmp) => {
+          val overrides = tmp.overrides
+          val users = overrides.find(_.userId==user.email)
+          users match {
+            case Some(u) => {
+              println(s"permission override for ${u.active}")
+              u.active
+            }
+            case None => {
+              println("no overrides for user")
+              p.defaultValue
+            }
           }
         }
-      }
-      case None => {
-        println("defaulting default")
-        p.defaultValue
+        case None => {
+          println("defaulting default")
+          p.defaultValue
+        }
       }
     }
+
   }
 }
 
