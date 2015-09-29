@@ -64,14 +64,10 @@ object FrontController extends Controller with PanDomainAuthActions {
 import play.api.mvc._
 
 object PermissionCheckAction extends ActionFilter[UserRequest] {
-
   override def filter[A](request: UserRequest[A]) = {
-    val s3Client = new AmazonS3Client(aws.permissionsCreds)
-    s3Client.setRegion(Regions.fromName("eu-west-1"))
-    val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
     import scala.concurrent.ExecutionContext.Implicits.global
     for {
-      b <- permissionsReader.get(SimplePermission.ConfigureFronts, request.user)
+      b <- PermissionsReader.get(SimplePermission.ConfigureFronts, request.user)
     } yield
     (if(b) {
       None

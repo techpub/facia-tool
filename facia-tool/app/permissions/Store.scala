@@ -48,10 +48,7 @@ class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), schedul
 
   def refresh() = {
     println("CALLING REFRESH")
-    val s3Client = new AmazonS3Client(aws.permissionsCreds)
-    s3Client.setRegion(Regions.fromName("eu-west-1"))
-    val permissionsReader = new PermissionsReader("permissions.json", "permissions-cache/CODE", s3Client)
-    permissionsReader.storePermissions("permissions.json", "permissions-cache/CODE")
+    PermissionsReader.storePermissions("permissions.json", "permissions-cache/CODE")
   }
 }
 
@@ -92,7 +89,12 @@ object PermissionCacheEntry {
   implicit val jsonFormats = Json.format[PermissionCacheEntry]
 }
 
-class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  {
+object PermissionsReader  {
+
+  val s3Client = new AmazonS3Client(aws.permissionsCreds)
+  s3Client.setRegion(Regions.fromName("eu-west-1"))
+  val bucket = "permissions-cache/CODE"
+  val key = "permissions.json"
 
   private val agent = Agent[List[PermissionCacheEntry]](List[PermissionCacheEntry]())
 
@@ -107,8 +109,7 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
       val permissionCache = jsValue.validate[List[PermissionCacheEntry]]
       permissionCache match {
         case JsSuccess(perm, _) => {
-          println("STORING PERMS " + perm)
-          agent.alter(_ => perm)
+          agent.send(perm)
         }
         case JsError(error) => println(s"could not format ${error}")
       }
@@ -123,10 +124,9 @@ class PermissionsReader(key: String, bucket: String, s3Client: AmazonS3Client)  
   }
 
   def get(p: SimplePermission, user: User): Future[Boolean] = {
-    println("****************** CHECKING THE PERM *************")
     val psFt = agent.future()
     psFt.map { ps =>
-      println("ARE THERE ANY PERMS " + ps)
+      println(s"WHAT IS PS ${ps}")
       val permission = ps.find(_.permission==p)
       permission match {
         case Some(tmp) => {
