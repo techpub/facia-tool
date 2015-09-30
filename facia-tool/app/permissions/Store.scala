@@ -20,6 +20,7 @@ import scala.concurrent.{Future, ExecutionContext}
 import scala.io.Source
 import scala.util.Try
 import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.{Logger => PlayLogger, LoggerLike}
 
 
 class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
@@ -50,8 +51,8 @@ class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), schedul
 
   def refresh() = {
     PermissionsReader.populateCache() match {
-      case Right(_) => println("successfully updated cache")
-      case Left(error) => println("ERROR")
+      case Right(_) => Logger.info("successfully updated cache")
+      case Left(error) => Logger.error("error updating cache")
     }
   }
 }

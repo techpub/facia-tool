@@ -33,7 +33,8 @@ object Global extends WithFilters(Gzipper)
   )
 
   override def onStart(app: Application) = {
-   val job = new ScheduledJob()
-   job.start()
+    val job = new ScheduledJob()
+    job.start()
+    LogStash.init()
   }
 }
