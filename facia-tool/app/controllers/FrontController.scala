@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.gu.facia.client.models.{FrontJson, CollectionConfigJson}
 import com.gu.pandomainauth.action.UserRequest
 import permissions.{SimplePermission, PermissionsReader}
+import play.api.Logger
 import play.api.mvc.Controller
 import services.Press
 import util.Requests._
@@ -70,6 +71,7 @@ object PermissionCheckAction extends ActionFilter[UserRequest] {
       b <- PermissionsReader.get(SimplePermission.ConfigureFronts, request.user)
     } yield
     (if(b) {
+      Logger.info("user not authenticated")
       None
     }
     else {
