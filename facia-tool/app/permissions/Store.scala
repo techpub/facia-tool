@@ -98,7 +98,7 @@ object PermissionCacheEntry {
 object PermissionsReader  {
 
   val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
-  s3Client.setRegion(Regions.fromName("eu-west-1"))
+  s3Client.configureRegion(Regions.fromName("eu-west-1"))
   val bucket = "permissions-cache/CODE"
   val key = "permissions.json"
 
