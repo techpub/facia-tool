@@ -22,6 +22,8 @@ import scala.util.Try
 import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.{Logger => PlayLogger, LoggerLike}
 
+import scala.util.control.NonFatal
+
 
 class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), scheduler:Scheduler = StdSchedulerFactory.getDefaultScheduler()) {
 
@@ -52,7 +54,7 @@ class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), schedul
   def refresh() = {
     PermissionsReader.populateCache() match {
       case Right(_) => Logger.info("successfully updated cache")
-      case Left(error) => Logger.error("error updating cache")
+      case Left(error) => Logger.error("error updating cache " + error)
     }
   }
 }
@@ -95,14 +97,20 @@ object PermissionCacheEntry {
 
 object PermissionsReader  {
 
-  val s3Client = new AmazonS3Client(aws.permissionsCreds)
+  val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
   s3Client.setRegion(Regions.fromName("eu-west-1"))
   val bucket = "permissions-cache/CODE"
   val key = "permissions.json"
 
   private val agent = Agent[List[PermissionCacheEntry]](List[PermissionCacheEntry]())
 
-  private def getObject(key: String, bucketName: String): S3Object = s3Client.getObject(new GetObjectRequest(bucketName, key))
+  private def getObject(key: String, bucketName: String): Either[PermissionsReaderError, S3Object] = {
+    try {
+      Right(s3Client.getObject(new GetObjectRequest(bucketName, key)))
+    } catch {
+      case NonFatal(e) => Left(ErrorLevel("error reading the s3 cache", Some(e)))
+    }
+  }
   // Get object contents and ensure stream is closed
   //to do - move the parsing and storing somewhere
   private def getObjectContents(obj: S3Object): Either[PermissionsReaderError, PermissionsData] = {
@@ -111,7 +119,7 @@ object PermissionsReader  {
       val lastMod  = obj.getObjectMetadata.getLastModified
       Right(PermissionsData(contents, lastMod))
     } catch {
-      case e: Exception => Left(ErrorLevel("error reading the S3 cache", Some(e)))
+      case NonFatal(e)=> Left(ErrorLevel("error reading the S3 cache", Some(e)))
     } finally {
       obj.close()
     }
@@ -129,8 +137,8 @@ object PermissionsReader  {
   }
 
   def populateCache(): Either[PermissionsReaderError, Unit] = {
-    val obj = getObject(key, bucket)
     for {
+      obj <- getObject(key, bucket).right
       data <- getObjectContents(obj).right
       permissions <- parseS3data(data.contents).right
       _ <- Right(storePermissionsData(permissions)).right
