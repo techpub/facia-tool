@@ -20,20 +20,12 @@ object LogStash {
   case class KinesisAppenderConfig(stream: String, region: String, roleArn: String, bufferSize: Int)
 
   lazy val enabled = config.getBoolean("logging.logstash.enabled").getOrElse(false)
-  lazy val logHostOpt = config.getString("logging.logstash.host")
-  lazy val logPortOpt = config.getInt("logging.logstash.port")
 
-
-  lazy val customFields = (
-    for {
-      app   <- config.getString("logging.fields.app")
-      stage <- config.getString("logging.fields.stage")
-    } yield Map(
+  lazy val customFields = Map(
       "stack" -> "fronts",
-      "stage" -> stage.toUpperCase,
-      "app"   -> app
-    )).getOrElse(Map("logging-error" -> "bad-logging-config"))
-
+      "stage" -> Configuration.facia.stage.toUpperCase,
+      "app"   -> Configuration.faciatool.logApp
+    )
   def makeCustomFields: String = {
     "{" + (for((k, v) <- customFields) yield(s""""${k}":"${v}"""")).mkString(",") + "}"
   }
@@ -94,11 +86,6 @@ object LogStash {
 
 
   def init() = {
-    asLogBack(PlayLogger).map { lb =>
-      val context = lb.getLoggerContext
-      lb.addAppender(makeFileAppender(context, "/Users/ldew/dev/workapps/facia-tool/logtmp.txt"))
-    }
-
     if(enabled) {
       PlayLogger.info("LogConfig initializing")
       (for {
@@ -107,7 +94,7 @@ object LogStash {
         lb.info("Configuring Logback")
         val context = lb.getLoggerContext
         val layout = makeLayout(makeCustomFields)
-        val bufferSize   = 1000;
+        val bufferSize = 1000
         // remove the default configuration
         val appender  = makeKinesisAppender(layout, context,
           KinesisAppenderConfig(
