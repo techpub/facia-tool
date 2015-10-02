@@ -11,6 +11,8 @@ import play.api._
 import play.api.mvc.WithFilters
 import services.ConfigAgentLifecycle
 
+import scala.util.control.NonFatal
+
 object Global extends WithFilters(Gzipper)
   with GlobalSettings
   with CloudWatchApplicationMetrics
@@ -35,6 +37,10 @@ object Global extends WithFilters(Gzipper)
   override def onStart(app: Application) = {
     val job = new ScheduledJob()
     job.start()
-    LogStash.init()
+    Logger.info("configuring log stash")
+    try LogStash.init()
+    catch {
+      case NonFatal(e) => Logger.error(s"could not configure log stream ${e}")
+    }
   }
 }
