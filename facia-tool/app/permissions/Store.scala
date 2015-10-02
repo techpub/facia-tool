@@ -6,7 +6,7 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{GetObjectRequest, S3Object}
 import java.util.Date
 import com.gu.pandomainauth.model.User
-import conf.aws
+import conf.{Configuration, aws}
 import dispatch.Http
 import org.joda.time.DateTime
 import org.quartz._
@@ -53,8 +53,8 @@ class ScheduledJob(callback: Try[Map[String, String]] => Unit = _ => (), schedul
 
   def refresh() = {
     PermissionsReader.populateCache() match {
-      case Right(_) => Logger.info("successfully updated cache")
-      case Left(error) => Logger.error("error updating cache " + error)
+      case Right(_) => Logger.info("successfully updated permissions cache")
+      case Left(error) => Logger.error("error updating permissions cache " + error)
     }
   }
 }
@@ -99,7 +99,7 @@ object PermissionsReader  {
 
   val s3Client = new AmazonS3Client(aws.mandatoryCredentials)
   s3Client.configureRegion(Regions.fromName("eu-west-1"))
-  val bucket = "permissions-cache/CODE"
+  val bucket = Configuration.faciatool.permissionsCache
   val key = "permissions.json"
 
   private val agent = Agent[List[PermissionCacheEntry]](List[PermissionCacheEntry]())
@@ -153,13 +153,13 @@ object PermissionsReader  {
   def getPermission(p: SimplePermission, cache: List[PermissionCacheEntry]): Either[PermissionDefault, PermissionCacheEntry] = {
     cache.find(_.permission==p).map(
       Right(_)
-    ).getOrElse(Left(PermissionDefault(p.defaultValue, ErrorLevel("Could not find permission"))))
+    ).getOrElse(Left(PermissionDefault(p.defaultValue, ErrorLevel(s"Could not find permission ${p.name}}"))))
   }
 
   def getOverridesForPerm(p: PermissionCacheEntry, user: User): PermissionAuth = {
     p.overrides.find(_.userId==user.email).fold(
-      PermissionAuth(p.permission.defaultValue, InfoLevel("no override set, using default from service"))
-    )(user => PermissionAuth(user.active, InfoLevel(s"user override set to ${user.active}")))
+      PermissionAuth(p.permission.defaultValue, InfoLevel(s"no override set for permission ${p.permission.name}, using default from service"))
+    )(user => PermissionAuth(user.active, InfoLevel(s"user override set to ${user.active} for permission ${p.permission.name}")))
   }
 
   def readCache(p: SimplePermission, user: User, cache: List[PermissionCacheEntry]): Either[PermissionDefault, PermissionAuth] = {
