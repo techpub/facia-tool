@@ -20,3 +20,5 @@ javaOptions in Universal ++= Seq(
     "-J-XX:+PrintGCDateStamps",
     s"-J-Xloggc:/var/log/${packageName.value}/gc.log"
 )
+
+ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }

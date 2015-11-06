@@ -36,7 +36,7 @@ object Dependencies {
   val kinesisLogBack = "com.gu" % "kinesis-logback-appender" % "1.0.5"
   val logStash = "net.logstash.logback" % "logstash-logback-encoder" % "4.2"
   val playGoogleAuth = "com.gu" %% "play-googleauth" % "0.3.0"
-  val panDomainAuth = "com.gu" %% "pan-domain-auth-play_2-4-0" % "0.2.9"
+  val panDomainAuth = "com.gu" %% "pan-domain-auth-play_2-4-0" % "0.2.6"
   val playJsonVariants = "org.julienrf" %% "play-json-variants" % "0.2"
   val quartzScheduler = "org.quartz-scheduler" % "quartz" % "2.2.1"
   val scalajTime = "org.scalaj" % "scalaj-time_2.10.2" % "0.7"
