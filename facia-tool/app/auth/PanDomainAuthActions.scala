@@ -45,8 +45,8 @@ trait PanDomainAuthActions extends AuthActions with PanDomainAuth with Results {
 
   override lazy val domain: String = Configuration.faciatool.pandomainDomain
   override lazy val system: String = Configuration.faciatool.pandomainService
-//  override def awsCredentialsProvider  = new AWSCredentialsProviderChain(
-//    new STSAssumeRoleSessionCredentialsProvider(Configuration.faciatool.pandomainRoleArn, "workflow")
-//  )
+  override def awsCredentialsProvider  = new AWSCredentialsProviderChain(
+    new STSAssumeRoleSessionCredentialsProvider(Configuration.faciatool.pandomainRoleArn, "workflow")
+  )
 
 }
