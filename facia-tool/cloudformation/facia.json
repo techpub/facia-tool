@@ -25,6 +25,11 @@
             "Description": "Composer role to assume access to the kinesis log stash stream",
             "Type": "String",
             "Default": "arn:aws:iam::743583969668:role/FrontsRoleForLogStash-FaciaToolRole-GX5KBXQZGL5X"
+        },
+        "PandaRoleToAssume": {
+            "Description": "Composer role to assume access to the kinesis log stash stream",
+            "Type": "String",
+            "Default": "arn:aws:iam::753338109777:role/Fronts-panda-IAM-FaciaToolRole-NKNXCYEGL0F6"
         }
     },
     "Mappings": {
@@ -108,13 +113,11 @@
           "Properties": {
             "PolicyName": "PanDomainPolicy",
             "PolicyDocument": {
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": ["s3:GetObject"],
-                  "Resource": ["arn:aws:s3:::pan-domain-auth-settings/*"]
-                }
-              ]
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Resource": { "Ref" : "PandaRoleToAssume" }
+                }]
             },
             "Roles": [{"Ref": "DistributionRole"}]
           }
@@ -145,7 +148,7 @@
                         "Effect": "Allow",
                         "Action": "sts:AssumeRole",
                         "Resource": { "Ref" : "FrontendRoleToAssume" }
-                    } ]
+                    }]
                 },
                 "Roles": [{ "Ref": "DistributionRole" }]
             }
